@@ -1,0 +1,10 @@
+shower=OFF
+done
+set pdlabel lhapdf
+set lhaid 325500
+set use_syst False
+set nevents $NEVENT
+set iseed $SEED
+set param_card tripcoup 4 19.000
+set param_card quartcoup 6 19.000
+done
