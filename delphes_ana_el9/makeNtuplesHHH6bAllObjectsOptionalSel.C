@@ -410,7 +410,7 @@ void processGenParticle(const GenParticle* genparticle, int particleIdx, EventDa
             higgs2_p4 = p4;
             higgs_count++;
         } else if(higgs_count == 2) {
-            // Second Higgs
+            // Third Higgs
             data.floatVars["gen_higgs3_pt"] = genparticle->PT;
             data.floatVars["gen_higgs3_eta"] = genparticle->Eta;
             data.floatVars["gen_higgs3_phi"] = genparticle->Phi;
@@ -463,7 +463,7 @@ void processGenParticle(const GenParticle* genparticle, int particleIdx, EventDa
                 bhadrons_info.push_back(std::make_tuple(genparticle->PID, particleIdx, isFromHiggsDecay, decay_chains));
                 
                 TLorentzVector p4 = genparticle->P4();
-                data.vintVars["gen_bhadron_fromhh"]->push_back(isFromHiggsDecay ? 1 : 0);
+                data.vintVars["gen_bhadron_fromhhh"]->push_back(isFromHiggsDecay ? 1 : 0);
                 data.vfloatVars["gen_bhadron_px"]->push_back(p4.Px());
                 data.vfloatVars["gen_bhadron_py"]->push_back(p4.Py());
                 data.vfloatVars["gen_bhadron_pz"]->push_back(p4.Pz());
@@ -587,7 +587,7 @@ void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile
         {"part_dphi", "vector<float>"},
         
         // GenParticle variables
-        {"gen_bhadron_fromhh", "vector<int>"},
+        {"gen_bhadron_fromhhh", "vector<int>"},
         {"gen_bhadron_px", "vector<float>"},
         {"gen_bhadron_py", "vector<float>"},
         {"gen_bhadron_pz", "vector<float>"},
@@ -799,7 +799,7 @@ void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile
         // require 4j3b trigger criteria
         int num_loosebtagged_jet = 0;
         int num_tightbtagged_jet = 0;
-        for (Int_t idx_seljet = 0; idx_seljet < std::min(6, (int)selected_jets.size()); ++idx_seljet) {
+        for (Int_t idx_seljet = 0; idx_seljet < std::min(4, (int)selected_jets.size()); ++idx_seljet) {
             Int_t idx_jet = selected_jets[idx_seljet].second;
             if (data.vfloatVars["jet_sophonAK4_probB"]->at(idx_jet) > 0.0243) {
                 ++num_loosebtagged_jet;
