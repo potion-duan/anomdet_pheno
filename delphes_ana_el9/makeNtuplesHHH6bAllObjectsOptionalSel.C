@@ -479,9 +479,9 @@ void processGenParticle(const GenParticle* genparticle, int particleIdx, EventDa
     }
 }
 
-void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile, TString modelPathAK4, TString modelPathFatJet, TString jetBranch = "JetPUPPI", TString fatJetBranch = "JetPUPPIAK8", TString selectionLevel = "6j") {
+void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile, TString modelPathAK4, TString modelPathFatJet, TString jetBranch = "JetPUPPI", TString fatJetBranch = "JetPUPPIAK8", TString selectionLevel = "4j") {
     // Verify selection level
-    if (selectionLevel != "full" && selectionLevel != "6j" && selectionLevel != "6j3b" && selectionLevel != "6j3bor2b") {
+    if (selectionLevel != "full" && selectionLevel != "4j" && selectionLevel != "4j3b" && selectionLevel != "4j3bor2b") {
         std::cerr << "Invalid selection level: " << selectionLevel << std::endl;
         return;
     }
@@ -492,8 +492,8 @@ void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile
     // Define all branches
     std::vector<std::pair<std::string, std::string>> branchList = {
         {"pass_selection", "int"},
-        {"pass_6j3b_selection", "int"},
-        {"pass_6j2b_selection", "int"},
+        {"pass_4j3b_selection", "int"},
+        {"pass_4j2b_selection", "int"},
         {"pass_boosted_trigger", "int"},
         {"HT", "float"},
         {"pfcand_sum_mass", "float"},
@@ -753,8 +753,8 @@ void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile
         data.floatVars["HT"] = HT;
 
         if (!pass_selection) {
-            if (selectionLevel == "6j" || selectionLevel == "6j3b" || selectionLevel == "6j3bor2b") {
-                std::cerr << "Event failed selection 6j criteria. This shouldn't happen if the delphes events have passed this filter" << std::endl;
+            if (selectionLevel == "4j" || selectionLevel == "4j3b" || selectionLevel == "4j3bor2b") {
+                std::cerr << "Event failed selection 4j criteria. This shouldn't happen if the delphes events have passed this filter" << std::endl;
                 continue;
             }
         }
@@ -796,7 +796,7 @@ void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile
                 }
             }
         }
-        // require 6j3b trigger criteria
+        // require 4j3b trigger criteria
         int num_loosebtagged_jet = 0;
         int num_tightbtagged_jet = 0;
         for (Int_t idx_seljet = 0; idx_seljet < std::min(6, (int)selected_jets.size()); ++idx_seljet) {
@@ -808,13 +808,13 @@ void makeNtuplesHHH6bAllObjectsOptionalSel(TString inputFile, TString outputFile
                 ++num_tightbtagged_jet;
             }
         }
-        data.intVars["pass_6j3b_selection"] = (num_loosebtagged_jet >= 3) ? 1 : 0;
-        data.intVars["pass_6j2b_selection"] = (num_tightbtagged_jet >= 2) ? 1 : 0;
+        data.intVars["pass_4j3b_selection"] = (num_loosebtagged_jet >= 3) ? 1 : 0;
+        data.intVars["pass_4j2b_selection"] = (num_tightbtagged_jet >= 2) ? 1 : 0;
 
-        if (selectionLevel == "6j3b" && data.intVars["pass_6j3b_selection"] == 0) {
+        if (selectionLevel == "4j3b" && data.intVars["pass_4j3b_selection"] == 0) {
             continue;
         }
-        if (selectionLevel == "6j3bor2b" && data.intVars["pass_6j3b_selection"] == 0 && data.intVars["pass_6j2b_selection"] == 0) {
+        if (selectionLevel == "4j3bor2b" && data.intVars["pass_4j3b_selection"] == 0 && data.intVars["pass_4j2b_selection"] == 0) {
             continue;
         }
 
