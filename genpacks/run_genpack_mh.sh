@@ -5,6 +5,7 @@
 
 NEVENT=$1
 MACHINE=$2
+MH=$3
 if [ -z $MACHINE ]; then
     MACHINE=farm
 fi
@@ -52,6 +53,12 @@ fi
 
 ## write mg5_step2.dat
 cp -f mg5_step2_templ.dat mg5_step2.dat
+## if MH exists, replace mh by MH
+if [ -n "$MH" ]; then
+    sed -i "/^done/i set param_card mass 25 $MH" mg5_step2.dat
+fi
+cat mg5_step2.dat
+
 ## if mg5_params.dat exists, replace $1, $2, ... by the customized params
 if [ -f mg5_params.dat ]; then
     for i in `seq 1 ${#PARAMS[@]}`; do

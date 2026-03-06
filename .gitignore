@@ -1,0 +1,15 @@
+# jupyter
+.ipynb_checkpoints/
+
+# ROOT ACLiC
+*_C.so
+*_C.d
+*.pcm
+
+# build
+*.o
+
+# data
+*.root
+*.lhe
+

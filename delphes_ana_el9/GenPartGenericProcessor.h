@@ -1,5 +1,5 @@
-#ifndef GenPartProcessor_h
-#define GenPartProcessor_h
+#ifndef GenPartGenericProcessor_h
+#define GenPartGenericProcessor_h
 
 #include <iostream>
 #include <cassert>
@@ -13,7 +13,7 @@
 #include "ParticleID.h"
 #include "ParticleInfo.h"
 
-class GenPartProcessor {
+class GenPartGenericProcessor {
 
 public:
     struct genPartData {
@@ -37,10 +37,10 @@ public:
     }
 
 public:
-    GenPartProcessor() {}
-    GenPartProcessor(bool debug) : debug_(debug) {}
+    GenPartGenericProcessor() {}
+    GenPartGenericProcessor(bool debug) : debug_(debug) {}
 
-    virtual ~GenPartProcessor() {}
+    virtual ~GenPartGenericProcessor() {}
 
     void process(TString mode, const TClonesArray *branchParticle) {
         // Process the gen particles with the given mode
@@ -64,16 +64,63 @@ public:
                 continue;
             processed_.insert(gp);
 
-            if (mode == "wcbana") {
+            if (mode == "generic") {
                 findTopDecay(gp);
-                findWZDecay(gp);
+                findWZHiggsDecay(gp);
             }
-            else
-                throw std::invalid_argument("[GenPartProcessor::process] Invalid mode!");
         }
-
         if (genParticles_.size() != processed_.size())
-            throw std::logic_error("[GenPartProcessor] Not all genParticles are processed!");
+            throw std::logic_error("[GenPartGenericProcessor] Not all genParticles are processed!");
+
+        // count the number of particles in each type
+        std::vector<int> abspids = getData().pid;
+        for (auto &v : abspids) {
+            v = std::abs(v);
+        }
+        int n_higgs = std::count(abspids.begin(), abspids.end(), ParticleID::p_h0) + 
+            std::count(abspids.begin(), abspids.end(), ParticleID::p_H0);
+        int n_w = std::count(abspids.begin(), abspids.end(), ParticleID::p_Wplus);
+        int n_z = std::count(abspids.begin(), abspids.end(), ParticleID::p_Z0);
+        int n_top = std::count(abspids.begin(), abspids.end(), ParticleID::p_t);
+        int n_toppos = std::count(getData().pid.begin(), getData().pid.end(), ParticleID::p_t);
+
+        if (n_higgs == 0 && n_w == 0 && n_z == 0 && n_top == 0) {
+            getData().user_index = 0; // QCD process
+        } else if (n_higgs == 0 && n_w == 1 && n_z == 0 && n_top == 0) {
+            getData().user_index = 1; // W+jets
+        } else if (n_higgs == 0 && n_w == 0 && n_z == 1 && n_top == 0) {
+            getData().user_index = 2; // Z+jets
+        } else if (n_higgs == 0 && n_w == 0 && n_z == 0 && n_top == 1) {
+            getData().user_index = 3; // single-top
+        } else if (n_higgs == 0 && n_w == 0 && n_z == 0 && n_top == 2 && n_toppos == 1) {
+            getData().user_index = 4; // ttbar
+        } else if (n_higgs == 1 && n_w == 0 && n_z == 0 && n_top == 0) {
+            getData().user_index = 5; // single-higgs
+        } else if (n_higgs == 0 && n_w == 2 && n_z == 0 && n_top == 0) {
+            getData().user_index = 10; // diboson: WW
+        } else if (n_higgs == 0 && n_w == 1 && n_z == 1 && n_top == 0) {
+            getData().user_index = 11; // diboson: WZ
+        } else if (n_higgs == 0 && n_w == 0 && n_z == 2 && n_top == 0) {
+            getData().user_index = 12; // diboson: ZZ
+        } else if (n_higgs == 0 && n_w == 1 && n_z == 0 && n_top == 1) {
+            getData().user_index = 13; // tW
+        } else if (n_higgs == 0 && n_w == 0 && n_z == 1 && n_top == 1) {
+            getData().user_index = 14; // tZ
+        } else if (n_higgs == 1 && n_w == 1 && n_z == 0 && n_top == 0) {
+            getData().user_index = 15; // WH
+        } else if (n_higgs == 1 && n_w == 0 && n_z == 1 && n_top == 0) {
+            getData().user_index = 16; // ZH
+        } else if (n_higgs == 0 && n_w == 1 && n_z == 0 && n_top == 2 && n_toppos == 1) {
+            getData().user_index = 20; // ttW
+        } else if (n_higgs == 0 && n_w == 0 && n_z == 1 && n_top == 2 && n_toppos == 1) {
+            getData().user_index = 21; // ttZ
+        } else if (n_higgs == 1 && n_w == 0 && n_z == 0 && n_top == 2 && n_toppos == 1) {
+            getData().user_index = 22; // ttH
+        } else if (n_higgs == 2 && n_w == 0 && n_z == 0 && n_top == 0 && n_toppos == 0) {
+            getData().user_index = 100; // HH
+        } else {
+            getData().user_index = -1; // unknown process
+        }
     }
 
 private:
@@ -101,31 +148,27 @@ private:
                 auto wdaus = getDaughters(wfinal);
                 for (const auto & wdau: wdaus){
                     storeGenParticle(wdau); // save the W daughters
-                    if (std::abs(wdau->PID) == ParticleID::p_b)
-                        getData().user_index = 1; // found W->cb decay
                 }
             }
             else {
-                std::cerr << "[GenPartProcessor::find_top] W boson not found!" << std::endl;
+                std::cerr << "[GenPartGenericProcessor::find_top] W boson not found!" << std::endl;
                 storeGenParticle(nullptr);
                 storeGenParticle(nullptr);
             }
         }
     }
 
-    void findWZDecay(const GenParticle *particle) {
-        // Identify the W boson and store W/Z + W/Z daus particles
+    void findWZHiggsDecay(const GenParticle *particle) {
+        // Identify W/Z/Higgs boson and collect daughter particles
 
         auto pdgid = std::abs(particle->PID);
-        if (pdgid == ParticleID::p_Wplus || pdgid == ParticleID::p_Z0) {
+        if (pdgid == ParticleID::p_Wplus || pdgid == ParticleID::p_Z0 || pdgid == ParticleID::p_h0 || pdgid == ParticleID::p_H0) {
             auto final = getFinal(particle);
-            storeGenParticle(final); // save the W/Z boson
+            storeGenParticle(final); // save the W/Z/Higgs boson
 
             auto daus = getDaughters(final);
             for (const auto & dau: daus){
-                storeGenParticle(dau); // save the W/Z daughters
-                if (pdgid == ParticleID::p_Wplus && std::abs(dau->PID) == ParticleID::p_b)
-                    getData().user_index = 1; // found W->cb decay
+                storeGenParticle(dau); // save the daughters
             }
         }
     }
@@ -209,7 +252,7 @@ private:
     bool isHadronic(const GenParticle *particle, bool allow_gluon = false) const {
         // particle needs to be the final version before decay
         if (!particle)
-            throw std::invalid_argument("[GenPartProcessor::isHadronic()] Null particle!");
+            throw std::invalid_argument("[GenPartGenericProcessor::isHadronic()] Null particle!");
         for (const auto *dau : getDaughters(particle)) {
             auto pdgid = std::abs(dau->PID);
             if (pdgid >= ParticleID::p_d && pdgid <= ParticleID::p_b)

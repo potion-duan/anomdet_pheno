@@ -2,12 +2,11 @@
 #include <unordered_set>
 #include <utility>
 #include "TClonesArray.h"
-#include "Math/LorentzVector.h"
-#include <Math/Vector4D.h>
 #include "classes/DelphesClasses.h"
 #include "ExRootAnalysis/ExRootTreeReader.h"
 
 #include "JetMatching.h"
+#include "JetGhostMatching.h"
 #include "EventData.h"
 
 #include "OrtHelperSophonAK4.h"
@@ -20,7 +19,7 @@
 // class ExRootTreeReader;
 // #endif
 
-void makeNtuplesEvalSophonAK4(TString inputFile, TString outputFile, TString modelPathAK4, TString jetBranch = "JetPUPPI", bool debug = false) {
+void makeNtuplesEvalSophonAK4GhostMatching(TString inputFile, TString outputFile, TString modelPathAK4, TString jetBranch = "JetPUPPI", bool debug = false) {
     // gSystem->Load("libDelphes");
 
     TFile *fout = new TFile(outputFile, "RECREATE");
@@ -35,8 +34,9 @@ void makeNtuplesEvalSophonAK4(TString inputFile, TString outputFile, TString mod
         {"jet_energy", "float"},
         {"jet_mass", "float"},
         {"jet_nparticles", "int"},
-        {"jet_flavor", "int"},
-        {"jet_flavor_dr04", "int"},
+        // {"jet_flavor", "int"},
+        {"jet_hadronFlavor", "int"}, 
+        {"jet_partonFlavor", "int"}, 
         {"jet_sophonAK4_probs", "vector<float>"}
     };
     EventData data(branchList);
@@ -61,6 +61,9 @@ void makeNtuplesEvalSophonAK4(TString inputFile, TString outputFile, TString mod
     double jetR = 0.4;
     std::cerr << "jetR = " << jetR << std::endl;
 
+    // Initialize Ghost Matching method
+    JetGhostMatching ghostMatch(treeReader, jetR, 1e-18);  
+
     // Initialize onnx helper
     auto orthelper = OrtHelperSophonAK4(modelPathAK4.Data(), debug);
 
@@ -76,10 +79,27 @@ void makeNtuplesEvalSophonAK4(TString inputFile, TString outputFile, TString mod
         // Load selected branches with data from specified event
         treeReader->ReadEntry(entry);
 
+        // Prepare GenParticle list for the event
+        std::vector<GenParticle*> genParticles;
+        for (Int_t j = 0; j < branchParticle->GetEntriesFast(); ++j) {
+            genParticles.push_back((GenParticle *)branchParticle->At(j));
+        }
+        
+        // Collect all jets in the event
+        std::vector<Jet*> eventJets;
+        for (Int_t i = 0; i < branchJet->GetEntriesFast(); ++i) {
+            eventJets.push_back((Jet *)branchJet->At(i));
+        }
+
+        // Get detailed information using Ghost Matching method for all jets at once
+        std::vector<JetGhostMatching::JetGhostContent> ghostContents = 
+            ghostMatch.getDetailedGhostContent(eventJets, genParticles);
+
         // Loop over all jets in event
         std::vector<int> genjet_used_inds = {};
         for (Int_t i = 0; i < branchJet->GetEntriesFast(); ++i) {
-            const Jet *jet = (Jet *)branchJet->At(i);
+            Jet *jet = eventJets[i];
+            const auto& ghostContent = ghostContents[i];
 
             data.reset();
 
@@ -89,22 +109,9 @@ void makeNtuplesEvalSophonAK4(TString inputFile, TString outputFile, TString mod
             data.floatVars.at("jet_phi") = jet->Phi;
             data.floatVars.at("jet_energy") = jet->P4().Energy();
             data.floatVars.at("jet_mass") = jet->Mass;
-            data.intVars.at("jet_flavor") = jet->Flavor;
-
-            // Jet flavor (re-assign)
-            int pgdcode_max = -1;
-            for (Int_t i = 0; i < branchParticle->GetEntriesFast(); ++i) {
-                const GenParticle *gp = (GenParticle *)branchParticle->At(i);
-                int pdgid = std::abs(gp->PID);
-                if (((pdgid >= 1 && pdgid <= 5) || pdgid == 21) && gp->PT > 1.0 && std::abs(gp->Eta) < 2.5) {
-                    // same association requirement in JetFlavorAssociation
-                    int pgdcode = (pdgid == 21) ? 0 : pdgid;
-                    if (deltaR(gp, jet) < jetR && pgdcode > pgdcode_max) { // match with the jet
-                        pgdcode_max = pgdcode;
-                    }
-                }
-            }
-            data.intVars.at("jet_flavor_dr04") = (pgdcode_max == -1) ? 0 : ((pgdcode_max == 0) ? 21 : pgdcode_max);
+            // data.intVars.at("jet_flavor") = jet->Flavor;
+            data.intVars.at("jet_hadronFlavor") = ghostContent.hadronFlavor;
+            data.intVars.at("jet_partonFlavor") = ghostContent.partonFlavor;
 
             // Loop over all jet's constituents
             std::vector<ParticleInfo> particles;
@@ -163,7 +170,7 @@ void makeNtuplesEvalSophonAK4(TString inputFile, TString outputFile, TString mod
             const auto &output = orthelper.get_output();
 
             // Get inference output
-            for (size_t i = 0; i < 26; i++) {
+            for (size_t i = 0; i < 32; i++) {
                 data.vfloatVars.at("jet_sophonAK4_probs")->push_back(output[i]);
             }
             tree->Fill();
