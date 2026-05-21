@@ -6,5 +6,5 @@ set use_syst False
 set nevents $NEVENT
 set iseed $SEED
 set param_card tripcoup 4 0.000
-set param_card quartcoup 6 4.990
+set param_card quartcoup 6 99.000
 done
